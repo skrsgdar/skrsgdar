@@ -1,0 +1,47 @@
+set -e
+
+device=$1
+data=$2
+
+echo "device, "$device, "data", $data
+
+# general training
+bsizes=(8 16 32 64 128)
+n_epoch=(100 200 300)
+lrs=(0.1 0.01 0.001)
+decays=(0. 0.001 0.01 0.1)
+taus=(5 10 20 50 100)
+exp_dir=exp_out/rsgd_ar_${data}.txt
+
+if [ ! -d "exp_out" ];then
+    mkdir exp_out
+fi
+
+echo "HPO starts..."
+
+for (( b=0; b<${#bsizes[@]}; b++ ))
+do
+  for (( e=0; e<${#n_epoch[@]}; e++ ))
+  do
+    for (( l=0; l<${#lrs[@]}; l++ ))
+    do
+      for (( d=0; d<${#decays[@]}; d++ ))
+      do
+        for (( t=0; t<${#taus[@]}; t++ ))
+        do
+          echo "tau ${taus[$t]}, batch_size ${bsizes[$b]}, n_epoch ${n_epoch[$e]}, lr ${lrs[$l]}, weight_decay ${decays[$d]}"
+          python rsgd_ar.py --device ${device} \
+                            --data_type ${data} \
+                            --batch_size ${bsizes[$b]} \
+                            --n_epoch ${n_epoch[$e]} \
+                            --opt_type SGD --lr ${lrs[$l]} --weight_decay ${decays[$d]}\
+                            --eval_freq 50 \
+                            --tau ${taus[$t]} \
+                            --perturb_weight False --scale_weight 0.01 >>${exp_dir} 2>&1
+        done
+      done
+    done
+  done
+done
+
+echo "HPO ends."
